@@ -36,6 +36,7 @@ def extract_region_mapping(dest_conn, region_file: str) -> None:
     logger.info(f"  Loaded {len(df)} rows into raw_region_mapping")
 
 
+
 if __name__ == '__main__':
     if len(sys.argv) != 4:
         logger.error("Usage: python extract.py <source_db> <dest_db> <region_file>")
