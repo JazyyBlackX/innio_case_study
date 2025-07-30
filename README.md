@@ -13,41 +13,44 @@ This project demonstrates a complete ETL workflow for the INNIO case study, enco
 7. **Orchestration** with Prefect for task dependencies, retries, and logging.
 8. **Dockerization** for one‑command reproducibility.
 
+This project is built on Windows 11.
+
 ---
 
 ## Setup
 
-Follow these steps to configure your environment before running the pipeline:
+Follow these steps to configure your environment before running the pipeline: (Windows)
 
-1. **Clone the repository**
+1. **Open Terminal/PowerShell/CMD(Admin)**
    
-   Optional - Git CLI (for cloning the repository; install via package manager or from https://git-scm.com/downloads)
+2. Install Git CLI (for cloning the repository; install via package manager or from https://git-scm.com/downloads)
 
    ```bash
-   git clone [<REPO_URL>](https://github.com/JazyyBlackX/innio_case_study)
+   winget install --id Git.Git -e --source winget
+   ```
+
+3. **Clone the repository**
+   ```bash
+   git clone https://github.com/JazyyBlackX/innio_case_study
    cd innio_case_study
    ```
 
-3. **If git not installed, download the repo and cd to the innio_case_study directory**
-
-   ```bash
-   cd innio_case_study
-   ```
+4. **Install Docker Desktop** for containerized execution.
+     https://www.docker.com/products/docker-desktop/
    
-4. **Create and activate a Python virtual environment** (if running locally without Docker)
+5. Optional **Create and activate a Python virtual environment** (if running locally without Docker)
 
    ```bash
    python -m venv venv
    source venv/bin/activate       # macOS/Linux
    venv\Scripts\activate.bat    # Windows
    ```
-5. **Install Python dependencies**
+6. Optional **Install Python dependencies**
 
    ```bash
    pip install -r requirements.txt
    ```
-6. **Install Docker Desktop** for containerized execution.
-     https://www.docker.com/products/docker-desktop/
+
 
 ---
 
