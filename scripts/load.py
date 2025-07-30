@@ -26,6 +26,7 @@ def build_dim_customer(conn: sqlite3.Connection) -> None:
         conn
     )
     df.insert(0, 'customer_key', range(1, len(df) + 1))
+    df.dropna(subset=['Country'], inplace=True)
     df.to_sql('dim_customer', conn, if_exists='replace', index=False)
     logger.info(f"dim_customer loaded with {len(df)} rows")
 
