@@ -165,5 +165,11 @@ python scripts/orchestrate_etl.py
 
 ## Author & Contact
 
-**Avnish Sharma**  
-avnish1999@hotmail.com
+
+
+Avnish Sharma
+
+\[avnish.sharma@example.com](mailto:avnish.sharma@example.com)
+
+
+
