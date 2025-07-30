@@ -100,14 +100,10 @@ cd innio_case_study
 # 2. Build the Docker image
 docker build -t innio-etl .
 
-# 2. Run the full pipeline with default arguments
+# 3. Run the full pipeline with default arguments
 docker run --rm innio-etl
 
-# 3. Run the full pipeline with customer arguments
-docker run --rm \
-  -e OPENWEATHER_API_KEY=<YOUR_API_KEY> \
-  innio-etl \
-  /app/data/northwind.db /app/data/warehouse.db /app/data/region_mapping.xlsx
+
 ```
 
 * **Defaults** are embedded: `/app/data/northwind.db`, `/app/data/warehouse.db`, `/app/data/region_mapping.xlsx`, and the `OPENWEATHER_API_KEY` environment variable.
