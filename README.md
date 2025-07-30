@@ -20,24 +20,34 @@ This project demonstrates a complete ETL workflow for the INNIO case study, enco
 Follow these steps to configure your environment before running the pipeline:
 
 1. **Clone the repository**
+   
+   Optional - Git CLI (for cloning the repository; install via package manager or from https://git-scm.com/downloads)
 
    ```bash
-   git clone <REPO_URL>
+   git clone [<REPO_URL>](https://github.com/JazyyBlackX/innio_case_study)
    cd innio_case_study
    ```
-2. **Create and activate a Python virtual environment** (if running locally without Docker)
+
+3. **If git not installed, download the repo and cd to the innio_case_study directory**
+
+   ```bash
+   cd innio_case_study
+   ```
+   
+4. **Create and activate a Python virtual environment** (if running locally without Docker)
 
    ```bash
    python -m venv venv
    source venv/bin/activate       # macOS/Linux
    venv\Scripts\activate.bat    # Windows
    ```
-3. **Install Python dependencies**
+5. **Install Python dependencies**
 
    ```bash
    pip install -r requirements.txt
    ```
-4. **Install Docker Desktop** for containerized execution.
+6. **Install Docker Desktop** for containerized execution.
+     https://www.docker.com/products/docker-desktop/
 
 ---
 
@@ -47,6 +57,7 @@ Follow these steps to configure your environment before running the pipeline:
 * **Python 3.8+** (if running locally)
 * **SQLite** (bundled with Python)
 * **OpenWeatherMap API Key** (free tier)
+* **Git CLI (for cloning the repository; install via package manager or from https://git-scm.com/downloads)**
 
 ---
 
@@ -56,6 +67,7 @@ Follow these steps to configure your environment before running the pipeline:
 innio_case_study/
 ├── data/
 │   ├── northwind.db               # Sample source DB
+│   ├── warehouse.db               # Target DB
 │   └── region_mapping.xlsx        # Country → Region mapping
 │
 ├── scripts/
@@ -79,10 +91,16 @@ innio_case_study/
 ### Dockerized Run
 
 ```bash
-# 1. Build the Docker image
+# 1. Change Directory to innio_case_study
+cd innio_case_study
+
+# 2. Build the Docker image
 docker build -t innio-etl .
 
-# 2. Run the full pipeline
+# 2. Run the full pipeline with default arguments
+docker run --rm innio-etl
+
+# 3. Run the full pipeline with customer arguments
 docker run --rm \
   -e OPENWEATHER_API_KEY=<YOUR_API_KEY> \
   innio-etl \
