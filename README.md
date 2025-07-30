@@ -2,174 +2,267 @@
 
 ## Overview
 
-This project delivers a complete, container-ready ETL workflow that:
-1. **Extracts** orders and customers from the Northwind sample database.  
-2. **Enriches** the data with regional groupings (via `region_mapping.xlsx`) and real-time weather data from OpenWeather.  
-3. **Transforms & Loads** the result into an analytics-ready SQLite warehouse.  
-4. **Validates** tables and the final view with Pandera for data quality.  
-5. **Orchestrates** end-to-end execution using Prefect.  
-6. **Packages** everything in Docker for one-command reproducibility.
+This project demonstrates a complete ETL workflow for the INNIO case study, encompassing:
+
+1. **Extraction** of orders and customers from the Northwind SQLite database and loading of raw region mappings.
+2. **API Integration** to fetch real‑time weather data for customer cities via OpenWeatherMap.
+3. **Transformation** to join and enrich data (orders, customers, regions, weather) into staging tables.
+4. **Loading** of dimension tables (`dim_customer`, `dim_region`, `dim_weather`), a fact table (`fact_order`), and a reporting view (`view_order_analysis`).
+5. **Validation** of schema, nulls, duplicates, and referential integrity.
+6. **Analysis** of freight costs, order counts, temperature correlations, and weather distributions.
+7. **Orchestration** with Prefect for task dependencies, retries, and logging.
+8. **Dockerization** for one‑command reproducibility.
+
+---
+
+## Setup
+
+Follow these steps to configure your environment before running the pipeline:
+
+1. **Clone the repository**
+
+   ```bash
+   git clone <REPO_URL>
+   cd innio_case_study
+   ```
+2. **Create and activate a Python virtual environment** (if running locally without Docker)
+
+   ```bash
+   python -m venv venv
+   source venv/bin/activate       # macOS/Linux
+   venv\Scripts\activate.bat    # Windows
+   ```
+3. **Install Python dependencies**
+
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. **Install Docker Desktop** for containerized execution.
+
+---
+
+## Prerequisites
+
+* **Docker Desktop** (for containerized execution)
+* **Python 3.8+** (if running locally)
+* **SQLite** (bundled with Python)
+* **OpenWeatherMap API Key** (free tier)
+
+---
+
+## Repository Structure
+
+```
+innio_case_study/
+├── data/
+│   ├── northwind.db               # Sample source DB
+│   └── region_mapping.xlsx        # Country → Region mapping
+│
+├── scripts/
+│   ├── extract.py                 # Extract raw tables and region file
+│   ├── weather_api.py             # Fetch and store raw weather data
+│   ├── transform.py               # Build staging tables
+│   ├── load.py                    # Build dimensions, fact, and view
+│   ├── validate.py                # Data quality checks
+│   ├── analysis.py                # Reporting and summaries
+│   └── orchestration.py           # Prefect flow definition
+│
+├── Dockerfile                     # Container setup
+├── requirements.txt               # Python dependencies
+└── README.md                      # This document
+```
 
 ---
 
 ## Quick Start 🚀
 
-**Prerequisite:** Docker Desktop
-
-### Build and Run the ETL Pipeline
+### Dockerized Run
 
 ```bash
 # 1. Build the Docker image
 docker build -t innio-etl .
 
-# 2. Run the pipeline with bundled sample data
-docker run --rm innio-etl
+# 2. Run the full pipeline
+docker run --rm \
+  -e OPENWEATHER_API_KEY=<YOUR_API_KEY> \
+  innio-etl \
+  /app/data/northwind.db /app/data/warehouse.db /app/data/region_mapping.xlsx
 ```
 
-- Logs and validation results will stream to your terminal.
-- The pipeline exits with code `0` on success or `1` on any validation failure.
+* **Defaults** are embedded: `/app/data/northwind.db`, `/app/data/warehouse.db`, `/app/data/region_mapping.xlsx`, and the `OPENWEATHER_API_KEY` environment variable.
+* Pipeline logs and validation results print to `stdout`.
+* Exit code `0` on success, `1` on any failure.
 
-### Custom Data Paths or API Key
+### Local Development (Without Docker)
 
 ```bash
-docker run --rm innio-etl   "../data/northwind.db"   "../data/warehouse.db"   "../data/region_mapping.xlsx"   "<YOUR_OPENWEATHER_API_KEY>"
+# 1. Create and activate virtual environment
+python -m venv venv
+source venv/bin/activate       # macOS/Linux
+venv\Scripts\activate.bat      # Windows
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Run the Prefect flow
+python scripts/orchestration.py \
+  data/northwind.db data/warehouse.db data/region_mapping.xlsx \
+  <YOUR_OPENWEATHER_API_KEY>
 ```
 
-- If arguments are omitted, the defaults (`../data/...`) are used.
+You can also run each step individually:
 
----
-
-## Project Structure
-
-```
-innio_case_study/
-│
-├── data/
-│   ├── northwind.db
-│   └── region_mapping.xlsx
-│
-├── scripts/
-│   ├── extract.py
-│   ├── transform.py
-│   ├── load.py
-│   ├── weather_api.py
-│   ├── analysis.py
-│   ├── validate.py
-│   └── orchestrate_etl.py
-│
-├── requirements.txt
-├── Dockerfile
-└── README.md
+```bash
+python scripts/extract.py data/northwind.db data/warehouse.db data/region_mapping.xlsx
+python scripts/weather_api.py data/warehouse.db <YOUR_API_KEY>
+python scripts/transform.py data/warehouse.db data/region_mapping.xlsx
+python scripts/load.py data/warehouse.db
+python scripts/validate.py data/warehouse.db
+python scripts/analysis.py data/warehouse.db
 ```
 
 ---
 
-## Orchestration & Monitoring
+## Script Details & Usage
 
-- **Prefect 2.x** is used for workflow orchestration (`scripts/orchestrate_etl.py`).
-- Task dependencies: **extract → transform → weather_api → load → validate**.
-- Each task logs its progress and has **one retry** on failure.
+* **extract.py**
+  Extracts `Customers` and `Orders` into `raw_customers`/`raw_orders` and loads `raw_region_mapping` from Excel.
+
+  ```bash
+  python scripts/extract.py <source_db> <dest_db> <region_file>
+  ```
+
+* **weather\_api.py**
+  Fetches current weather per city in `dim_customer` and writes `raw_weather`.
+
+  ```bash
+  python scripts/weather_api.py <warehouse_db> <openweather_api_key>
+  ```
+
+* **transform.py**
+  Builds `stg_order_customer` and enriches with region logic into `stg_order_customer_region`.
+
+  ```bash
+  python scripts/transform.py <warehouse_db> <region_file>
+  ```
+
+* **load.py**
+  Constructs dimension tables (`dim_customer`, `dim_region`, `dim_weather`), the fact table (`fact_order`), and the reporting view (`view_order_analysis`).
+
+  ```bash
+  python scripts/load.py <warehouse_db>
+  ```
+
+* **validate.py**
+  Runs schema, nulls, duplicates, region coverage, and weather‑city match checks.
+
+  ```bash
+  python scripts/validate.py <warehouse_db>
+  ```
+
+* **analysis.py**
+  Prints freight cost statistics, order counts by region, temperature correlations, and weather distributions.
+
+  ```bash
+  python scripts/analysis.py <warehouse_db>
+  ```
+
+* **orchestration.py**
+  Defines a Prefect flow (`ETL_Workflow`) that runs all tasks in sequence with retries and logging.
+
+  ```bash
+  python scripts/orchestration.py <source_db> <warehouse_db> <region_file> <api_key>
+  ```
 
 ---
 
-## Tool Choices & Rationale
+## Tooling & Rationale
 
-| Component            | Tool             | Rationale                                   |
-|----------------------|------------------|---------------------------------------------|
-| Extraction           | pandas, sqlite3  | Quick, zero-config SQL-to-DataFrame loading |
-| API Integration      | requests         | Simple, reliable HTTP calls to OpenWeather  |
-| Transformation       | pandas           | Flexible joins and date logic               |
-| Data Quality         | Pandera          | In-code DataFrame schema & validation       |
-| Orchestration        | Prefect          | Python-native, easy retries & logging       |
-| Packaging            | Docker           | Portable, consistent environment            |
-
----
-
-## Data Quality Checks
-
-- **Schema validation**: Raw, staging, and final tables are validated with Pandera schemas.
-- **Null & duplicate checks**: Ensure no missing or repeated key fields.
-- **Referential integrity**: Verify city-to-weather and region mappings.
-- **Exit on failure**: Pipeline halts (`exit 1`) on any quality violation.
+| Component         | Library/Tool        | Purpose and Rationale                                                    |
+| ----------------- | ------------------- | ------------------------------------------------------------------------ |
+| SQL Access        | `sqlite3`, `pandas` | Zero‑config, fast in‑memory reads into DataFrames.                       |
+| API Calls         | `requests`          | Lightweight HTTP client with timeout and error handling.                 |
+| Data Manipulation | `pandas`            | Flexible joins, filters, and date operations.                            |
+| Orchestration     | `Prefect`           | Python‑native, built‑in retries, logging, and UI.                        |
+| Validation        | Custom scripts      | In-code checks for schema, nulls, duplicates, and referential integrity. |
+| Containerization  | `Docker`            | Ensures environment consistency and portability.                         |
 
 ---
 
 ## Challenges & Solutions
 
-1. **Windows path escaping**  
-   - *Issue:* Hardcoded backslashes in Python string literals caused `unicodeescape` errors.  
-   - *Solution:* All file paths are passed as CLI arguments. Where literals are needed, raw strings (e.g. `r"C:\path\to\db"`) or doubled backslashes are used.
+1. **Path Escaping on Windows**
 
-2. **Date parsing issues**  
-   - *Issue:* Full timestamps like `"2016-07-04 09:23:46"` parsed without format resulted in `NaT` for many rows.  
-   - *Solution:* Slice the first 10 characters (`"YYYY-MM-DD"`) and parse with `format="%Y-%m-%d"`, ensuring valid dates for all records.
+   * *Issue:* Hardcoded backslashes caused Unicode escape errors.
+   * *Fix:* All file paths passed as CLI args; raw strings used if necessary.
 
-3. **Region mapping headers mismatch**  
-   - *Issue:* Excel columns were named slightly differently than expected.  
-   - *Solution:* Added `df.rename(columns={…})` in both `transform.py` and `load.py` to map to standard names (`region_before`, `region_after`) before merging.
+2. **Date Parsing Consistency**
 
-4. **Single source of truth for region data**  
-   - *Issue:* Reading the Excel file in multiple scripts risked drift if the file changed.  
-   - *Solution:* Consolidated region extraction into `extract.py`, writing to `raw_region_mapping` table. Downstream scripts query that table.
+   * *Issue:* Full timestamp strings (`YYYY‑MM‑DD HH:MM:SS`) sometimes failed to parse.
+   * *Fix:* Slice to `YYYY‑MM‑DD` and parse with explicit format before SCD logic.
 
-5. **Locked database errors in notebooks**  
-   - *Issue:* Dropping views/tables in Jupyter led to “database is locked” errors.  
-   - *Solution:* Used context managers (`with sqlite3.connect(db) as conn:`) to ensure proper connection closure and restarted kernels when needed.
+3. **Region Mapping Header Mismatch**
 
-6. **Duplicated weather records causing row explosion**  
-   - *Issue:* Raw weather had multiple records per city; joining on city without dedupe caused duplicate orders.  
-   - *Solution:* In `build_dim_weather`, sorted by `weather_timestamp` and kept only the latest record per city before joining.
+   * *Issue:* Excel headers didn’t match expected column names.
+   * *Fix:* Unified column renaming in both transform and load steps.
 
-7. **Incorrect join on customer key**  
-   - *Issue:* Joined `stg_order_customer_region.CustomerID` to `dim_customer.customer_key` mistakenly, yielding zero rows.  
-   - *Solution:* Corrected join to natural `CustomerID` and generated `customer_key` via `ROW_NUMBER()` in the dimension.
+4. **Database Locking in Notebooks**
 
-8. **Recreating views in SQLite**  
-   - *Issue:* SQLite does not support `CREATE OR REPLACE VIEW`.  
-   - *Solution:* Each run drops the view if it exists (`DROP VIEW IF EXISTS view_order_analysis;`) then recreates it.
+   * *Issue:* Dropping views/tables in Jupyter led to locks.
+   * *Fix:* Used `with sqlite3.connect(...)` context managers and restarted kernels.
 
-9. **Weather API experimentation**  
-   - *Issue:* Started with OpenWeather Geocoding API (v3.0), hit rate limits, and struggled with accented city names.  
-   - *Solution:* Switched to the simpler v2.5 `weather?q=City` endpoint, added safe JSON extraction logic, and handle special characters.
+5. **Duplicate Weather Records**
+
+   * *Issue:* Multiple API calls per city caused row explosion.
+   * *Fix:* Deduplicated by city, keeping only the latest timestamp in `dim_weather`.
+
+6. **Incorrect Dimensional Joins**
+
+   * *Issue:* Fact load joined on the wrong key, yielding zero rows.
+   * *Fix:* Corrected to natural `CustomerID` join and generated surrogate keys via `ROW_NUMBER()`.
+
+7. **SQLite View Recreation**
+
+   * *Issue:* No `CREATE OR REPLACE VIEW` support.
+   * *Fix:* `DROP VIEW IF EXISTS` before `CREATE VIEW` in `load.py`.
+
+8. **API Rate Limits & Encoding**
+
+   * *Issue:* Geocoding endpoint limits and accented city names.
+   * *Fix:* Switched to the simpler `weather?q=City` endpoint with safe JSON parsing.
 
 ---
 
 ## Example Output
 
 ```
-[PASS] Schema validation for view_order_analysis
-INFO  No nulls in key fields ['city','region_name','temperature_C']
+[PASS] Schema check for view_order_analysis
+INFO  No nulls in critical fields
 INFO  No duplicate order_id entries
-INFO  Referential integrity checks passed ✅
-All validations passed successfully!
+INFO  Referential integrity passed
+[PASS] All validations passed successfully
 ```
 
-Final enriched data is persisted in `data/warehouse.db` with all dimension and fact tables, plus `view_order_analysis`.
+Final enriched data and analytics view live in `data/warehouse.db`.
 
 ---
 
-## Running Locally (without Docker)
+## Future Enhancements
 
-```bash
-python -m venv venv
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
+This project can be extended with a number of production‑grade improvements as time and resources allow:
 
-pip install -r requirements.txt
-python scripts/orchestrate_etl.py
-```
+* **Prefect Cloud or Self‑Hosted Orion Scheduling**: Formalize deployments using Prefect’s Deployment API, work pools, and agents to run ETL flows on a managed schedule with built‑in monitoring and retries.
+* **Great Expectations Integration**: Replace or augment the custom `validate.py` checks with GE expectation suites, checkpoints, and data docs to automatically generate HTML reports and integrate into CI pipelines.
+* **Unit & Integration Testing**: Add pytest test suites for each script and end‑to‑end integration tests using a temporary SQLite instance to ensure reproducibility with every change.
+* **CI/CD Pipeline**: Automate builds, tests, and deployments through GitHub Actions or GitLab CI, including Docker image builds and linting checks on pull requests.
+* **Container Orchestration**: Use Docker Compose or Kubernetes to separate services (e.g., Prefect server, agent, cron container) and enable parallel task execution and scaling.
+* **Data Catalog & Lineage**: Integrate with tools like OpenLineage or Apache Atlas to capture dataset metadata, lineage graphs, and enable data discovery.
+* **Cloud Data Warehouse**: Extend the target from SQLite to a cloud warehouse (e.g., Snowflake, BigQuery, Redshift) for higher volume scenarios and leverage managed scaling.
 
 ---
 
-## Author & Contact
 
+## Contact
 
-
-Avnish Sharma
-
-\[avnish.sharma@example.com](mailto:avnish.sharma@example.com)
-
-
-
+**Author:** Avnish Sharma
+**Email:** [avnish1999@hotmail.com](mailto:avnish1999@hotmail.com)

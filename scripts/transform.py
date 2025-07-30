@@ -11,7 +11,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Simple transform script for staging tables
 
 def connect(db_path):
     """Connect to the SQLite database."""
@@ -39,16 +38,16 @@ def transform_order_customer(conn):
 def transform_order_region(conn, region_file):
     """Enrich staging orders with region mappings (correct column names)."""
     logger.info("Transform: building stg_order_customer_region")
-    # Read staging orders
+
     df = pd.read_sql('SELECT * FROM stg_order_customer', conn)
-    # Read region mapping and normalize column names to match actual Excel headers
+
     regions = pd.read_excel(region_file)
     rename_map = {
         'Region until 2016': 'Region_before2016',
         'Region after 2016': 'Region_after2016'
     }
     regions = regions.rename(columns=rename_map)
-    # Merge on country
+
     needed_cols = ['Country', 'Region_before2016', 'Region_after2016']
     df = df.merge(
         regions[needed_cols],
@@ -60,13 +59,14 @@ def transform_order_region(conn, region_file):
     # Convert to datetime
     df['OrderDate'] = pd.to_datetime(df['OrderDate_str'],format='%Y-%m-%d',errors='coerce')
 
-    # and extract the year for your SCD logic
     df['OrderYear'] = df['OrderDate'].dt.year
-    # Apply SCD region selection
+  
     df['Region'] = df.apply(
         lambda x: x['Region_after2016'] if x['OrderYear'] >= 2016 else x['Region_before2016'],
         axis=1
     )
+
+    # Check for missing regions
     missing = df['Region'].isnull().sum()
     if missing:
         logger.warning(f"{missing} orders without region mapping")

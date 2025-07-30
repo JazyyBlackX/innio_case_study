@@ -5,7 +5,8 @@ import requests
 import logging
 from datetime import datetime
 
-# Basic logging
+# weather_api.py    
+# This script fetches weather data for cities in the database using OpenWeatherMap API
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -30,7 +31,7 @@ def fetch_weather_for_city(city, api_key):
     r = requests.get(API_URL, params=params, timeout=5)
     r.raise_for_status()
     d = r.json()
-    # Safe extraction of nested fields
+
     return {
         'city': city,
         'api_city_name': d.get('name'),

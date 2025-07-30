@@ -45,14 +45,14 @@ def build_dim_region(conn: sqlite3.Connection) -> None:
         before = row['region_before']
         after  = row['region_after']
 
-        # always include the “before” period
+        
         records.append({
             'country': country,
             'region_name': before,
             'effective_start': '1900-01-01',
             'effective_end':   '2015-12-31'
         })
-        # only include “after” if it changed
+
         if after != before:
             records.append({
                 'country': country,
@@ -70,13 +70,15 @@ def build_dim_weather(conn: sqlite3.Connection) -> None:
     """Build dim_weather from raw_weather, keeping only the latest record per city."""
     logger.info("Loading dimension table 'dim_weather' (deduped by city)")
 
-    # 1. Pull everything from raw_weather
     df = pd.read_sql("SELECT * FROM raw_weather;", conn)
 
-    # 2. Ensure the timestamp is a datetime
+    if df.empty:
+        logger.warning("No weather data found in raw_weather")
+        return
+
     df['weather_timestamp'] = pd.to_datetime(df['weather_timestamp'])
 
-    # 3. Sort so latest timestamp per city is last, then drop duplicates
+
     df = (
         df
         .sort_values(['city', 'weather_timestamp'])
@@ -84,18 +86,18 @@ def build_dim_weather(conn: sqlite3.Connection) -> None:
         .reset_index(drop=True)
     )
 
-    # 4. Rename any awkward columns
+    # Rename Columns to not include special characters
+    # and ensure consistency with the expected schema
     df = df.rename(columns={
         "humidity_%": "humidity_pct",
         "cloud_coverage_%": "cloud_coverage_pct",
-        # if your raw column was named 'clouds_all':
         "clouds_all": "cloud_coverage_pct"
     })
 
-    # 5. Add a surrogate key
+    # Add a surrogate key
     df.insert(0, 'weather_key', range(1, len(df) + 1))
 
-    # 6. Persist back to dim_weather
+
     df.to_sql("dim_weather", conn, if_exists="replace", index=False)
     logger.info(f"dim_weather loaded with {len(df)} rows (one per city)")
 

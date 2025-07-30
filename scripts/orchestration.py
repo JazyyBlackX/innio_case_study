@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 from prefect import flow, task, get_run_logger
 
+
 @task(retries=2, retry_delay_seconds=60)
 def extract_task(src_db: str, dest_db: str, region_file: str):
     """Run extract.py"""
