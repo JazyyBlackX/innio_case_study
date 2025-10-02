@@ -1,8 +1,8 @@
-# INNIO Data Engineering Case Study
+# Data Engineering Case Study
 
 ## Overview
 
-This project demonstrates a complete ETL workflow for the INNIO case study, encompassing:
+This project demonstrates a complete ETL workflow for the case study, encompassing:
 
 1. **Extraction** of orders and customers from the Northwind SQLite database and loading of raw region mappings.
 2. **API Integration** to fetch real‑time weather data for customer cities via OpenWeatherMap.
